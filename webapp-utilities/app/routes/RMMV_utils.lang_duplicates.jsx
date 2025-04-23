@@ -73,7 +73,7 @@ export default function LangDuplicates() {
 
   return (
     <CentVList>
-      <h1>Solving Translation Duplicates in JSON</h1>
+      <h1 className="text-primary text-lg">Solving Translation Duplicates in JSON</h1>
       <CentHList>
       <Input
         type="file"

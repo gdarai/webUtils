@@ -15,7 +15,8 @@ export default function Index() {
         <NavButton link="/">To Root</NavButton>
       </CentHList>
       <CentHList>
-        <NavButton link="./lang_duplicates">Lang Duplicates</NavButton>
+      <NavButton link="./lang_duplicates">Lang Duplicates</NavButton>
+      <NavButton link="./lang_dup_migrate">Lang Migration</NavButton>
       </CentHList>
       <Outlet />
     </CentVList>

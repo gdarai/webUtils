@@ -11,7 +11,6 @@ export const langNamesAtom = atom({});
 
 export const stateWorking = 'Working';
 
-
 export const ldCleanHook = () => {
   const setErr = useSetAtom(langErrorsAtom);
   const setSrc = useSetAtom(langSrcAtom);
@@ -125,11 +124,14 @@ export const ldExportHook = () => {
 
 export const digInSrc = (src, key) => {
   const keys = key.split('.');
-  keys.shift();
+  if(key[0] === '.') keys.shift();
   const leaf = keys.pop();
 
   let now = src;
-  keys.forEach(k => now = now[k]);
+  keys.forEach(k => {
+    if(!now.hasOwnProperty(k)) now[k] = {};
+    now = now[k];
+  });
 
-  return { src: now, value: now[leaf] };
+  return { src: now, value: now[leaf], leaf };
 }

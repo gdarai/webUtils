@@ -1,5 +1,5 @@
 import { atom, useSetAtom, useAtomValue } from 'jotai';
-import { readJsonFile, writeJsonFile } from '@utils/index';
+import { readJsonFile, writeFile } from '@utils/index';
 import { config } from './lang_duplicates_conf';
 
 export const inpFileAtom = atom(undefined);
@@ -117,7 +117,7 @@ export const ldExportHook = () => {
     });
 
     const fileName = 'RMMV_rename_script.json';
-    writeJsonFile(res, fileName);
+    writeFile(res, fileName);
     setState('Result exported to: '+fileName);
   };
 }

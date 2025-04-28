@@ -26,9 +26,18 @@ export const readJsonFile = (file, callback = () => {}) => {
   });
 }
 
-export const writeJsonFile = (jsonData, fileName) => {
-  const jsonString = JSON.stringify(jsonData, null, 2); // Pretty-print with indentation
-  const blob = new Blob([jsonString], { type: "application/json" });
+export const writeFile = (data, fileName, type = 'application/json') => {
+  let blob;
+  if(type === 'application/json') {
+    const jsonString = JSON.stringify(data, null, 2); // Pretty-print with indentation
+    blob = new Blob([jsonString], { type: "application/json" });  
+  } else {
+    if(type !== 'zip') {
+      blob = new Blob([data], { type });
+    } else {
+      blob = data;
+    }
+  }
   const url = URL.createObjectURL(blob);
 
   const link = document.createElement("a");

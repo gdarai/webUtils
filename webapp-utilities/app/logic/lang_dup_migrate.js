@@ -1,6 +1,7 @@
 import { atom, useSetAtom, useAtom, useAtomValue } from 'jotai';
-import { readJsonFile, writeJsonFile, sleep, checkObjectConsistency } from '@utils/index';
+import { readJsonFile, writeFile, checkObjectConsistency } from '@utils/index';
 import { digInSrc } from './lang_duplicates';
+import JSZip from 'jszip';
 
 export const lang2SrcAtom = atom({});
 export const lang2StateAtom = atom('At Start');
@@ -146,7 +147,7 @@ export const ld2ProcessDataHook = () => {
 export const ld2ProcessLangHook = () => {
   const src = useAtomValue(lang2SrcAtom);
   const setState = useSetAtom(lang2StateAtom);
-  const setSt = useSetAtom(lang2StAtom);
+  const [st, setSt] = useAtom(lang2StAtom);
   const setInfo = useSetAtom(lang2InfoAtom);
   const setError = useSetAtom(lang2ErrorsAtom);
 
@@ -158,7 +159,7 @@ export const ld2ProcessLangHook = () => {
     const langs = src.lang;
     if(!langs.length) {
       setInfo(i => ([...i, 'No lang files selected.']));
-      setState('Work done');
+      setState('Work on LANG is done');
       return;
     }
 
@@ -177,7 +178,7 @@ export const ld2ProcessLangHook = () => {
     }
 
     setInfo(i => ([...i, 'Reshaping lang files']));
-    moves.forEach(m => {
+    st.moves.forEach(m => {
       if(!m.occ.length) return;
 
       langs.forEach(l => {
@@ -190,18 +191,29 @@ export const ld2ProcessLangHook = () => {
       setInfo(i => ([...i, m.f+' moved-to '+m.t]));
     });
  
-    setState('Work done');
+    setState('Work on LANG is done');
   };
 };
 
 export const ld2ExportHook = () => {
   const src = useAtomValue(lang2SrcAtom);
   const setState = useSetAtom(lang2StateAtom);
-  const setSt = useSetAtom(lang2StAtom);
   const setInfo = useSetAtom(lang2InfoAtom);
   const setError = useSetAtom(lang2ErrorsAtom);
 
-  return () => {
+  return async () => {
+    setState(stateWorking);
+    setInfo(['Preparing export zip']);
+    setError([]);
 
+    const out = new JSZip();
+    const data = out.folder('data');
+
+    src.lang.forEach(l => out.file(l.name, JSON.stringify(l.content, null, 2)));
+    src.data.forEach(d => data.file(d.name, JSON.stringify(d.content)));
+
+    const blob = await out.generateAsync({ type:"blob" });
+    writeFile(blob, "RMMV_rename_out.zip", 'zip');
+    setState('Export done');
   };
 };

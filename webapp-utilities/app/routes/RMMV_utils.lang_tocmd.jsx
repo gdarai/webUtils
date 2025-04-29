@@ -102,7 +102,7 @@ export default function LangToCmd() {
           onPress={() => ldProcessLang()}
         >Run Lang Migration</Button>
         <Button
-          isDisabled={!langSt.moves}
+          isDisabled={!langSt.consisCheck}
           onPress={() => ldExport()}
         >Export result</Button>
       </CentHList>

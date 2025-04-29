@@ -60,7 +60,7 @@ export const ld3ProcessDataHook = () => {
   const setError = useSetAtom(lang3ErrorsAtom);
   const setSt = useSetAtom(lang3StAtom);
 
-  const regex = /^#\{(.+)\.\d\}$/;
+  const regex = /^#\{(.+)\.\d+\}$/;
   const getLexPath = (seq) => {
     let commonPrefix = null;
     for (let i = 1; i < seq.length; i++) {
@@ -95,8 +95,9 @@ export const ld3ProcessDataHook = () => {
   };
 
   let moves = [];
+  let skips = [];
 
-  const processTransformation = (evSrc, script) => {
+  const processTransformation = (evSrc, script, id) => {
     let evs = [...evSrc];
     const moveMem = moves.length;
     for (let i = 0; i < evs.length; i++) {
@@ -108,6 +109,7 @@ export const ld3ProcessDataHook = () => {
           setInfo(ii => ([...ii, `SKIPPING ${i} - Lonely ${script.code[0]}`]));
           console.log(`SKIPPING ${i} - Lonely ${script.code[0]}`);
           console.log(evs[i]);
+          skips.push(`SKIPPING ${id}(${i}) - Lonely ${script.code[0]}`);
           continue;
         }
 
@@ -123,6 +125,7 @@ export const ld3ProcessDataHook = () => {
           setInfo(ii => ([...ii, `SKIPPING ${i} - NonLex ${script.code[0]}`]));
           console.log(`SKIPPING ${i} - NonLex ${script.code[0]}`);
           console.log(sequence);
+          skips.push(`SKIPPING ${id}(${i}) - NonLex ${script.code[0]}`);
           continue;
         }
 
@@ -135,7 +138,6 @@ export const ld3ProcessDataHook = () => {
   
         moves.push(lexPath);
         console.log(`-> ${i}: ${lexPath}`);
-        console.log(moves);
       // Replace the original sequence with the processed result
         evs.splice(start, end - start, ...[].concat(processed));
       }
@@ -157,8 +159,9 @@ export const ld3ProcessDataHook = () => {
       
       const isMap = /^Map\d+\.json$/.test(data.name);
       const isCommonEvents = data.name === 'CommonEvents.json';
+      const isTroops = data.name === 'Troops.json';
 
-      if(!isMap && !isCommonEvents) {
+      if(!isMap && !isCommonEvents && !isTroops) {
         setInfo(i => ([...i, 'File name not categorized']));
         setError(i => ([...i, 'Data file '+data.name+' cannot be processed']));
         return;
@@ -167,9 +170,25 @@ export const ld3ProcessDataHook = () => {
       if(isCommonEvents) {
         data.content.forEach(e => {
           if(e) {
-            setInfo(i => ([...i, `On ${'cmn.'+e.id+':'+e.name}`]));
-            e.list = processTransformation(e.list, forShowT);
-            e.list = processTransformation(e.list, forScrollT);
+            const name = 'cmn.'+e.id+':'+e.name;
+            setInfo(i => ([...i, `On ${name}`]));
+            e.list = processTransformation(e.list, forShowT, name);
+            e.list = processTransformation(e.list, forScrollT, name);
+          }
+        });
+      }
+
+      if(isTroops) {
+        data.content.forEach(e => {
+          if(e) {
+            e.pages.forEach((p, i) => {
+              const name = `troop ${e.id+":"+e.name+'.'+i}`;
+              setInfo(ii => ([...ii,'On '+name]));
+              console.log('IN', name, p.list);
+              p.list = processTransformation(p.list, forShowT, name);
+              p.list = processTransformation(p.list, forScrollT, name);
+              console.log('OUT', p.list);
+            });
           }
         });
       }
@@ -181,8 +200,8 @@ export const ld3ProcessDataHook = () => {
               const name = `${data.name+'.'+e.id+":"+e.name+'.'+i}`;
               setInfo(ii => ([...ii,'On '+name]));
               console.log('IN', name, p.list);
-              p.list = processTransformation(p.list, forShowT);
-              p.list = processTransformation(p.list, forScrollT);
+              p.list = processTransformation(p.list, forShowT, name);
+              p.list = processTransformation(p.list, forScrollT, name);
               console.log('OUT', p.list);
             });
           }
@@ -190,10 +209,11 @@ export const ld3ProcessDataHook = () => {
       }  
     });
 
-    setSt(st => ({...st,  moves }));
+    setSt(st => ({...st,  moves, skips }));
     console.log('== MOVES ==', moves);
+    console.log('== SKIPS ==', skips);
 
-    setState(`Data transformation (${moves.length}) is done`);
+    setState(`Data transformation (${moves.length}) is done (${skips.length} skips)`);
   }
 };
 
@@ -230,21 +250,39 @@ export const ld3ProcessLangHook = () => {
       return;
     }
 
-    setInfo(i => ([...i, 'Reshaping lang files']));
+    setInfo(i => ([...i, 'Check move duplicates']));
+    const movesUn = {};
     st.moves.forEach(m => {
-      if(!m.occ.length) return;
+      movesUn[m] = movesUn[m] ? movesUn[m]+1 : 1;
+    })
+    const moves = Object.keys(movesUn);
+    const multiMoves = Object.entries(movesUn)
+      .filter(([key, value]) => value > 1)
+      .map(([key]) => key);
+
+    setInfo(i => ([...i, `Moves reduced from ${st.moves.length} to ${moves.length} (by ${multiMoves.length})`]));
+    console.log('Multi moves', multiMoves);
+
+    const skips = [];
+    setInfo(i => ([...i, 'Reshaping lang files']));
+    moves.forEach(m => {
 
       langs.forEach(l => {
-        const srcF = digInSrc(l.content, m.f);
-        const srcT = digInSrc(l.content, m.t);
-
-        if(!srcT.value) srcT.src[srcT.leaf] = srcF.value;
-        delete srcF.src[srcF.leaf];
+        const s = digInSrc(l.content, m);
+        if(Array.isArray(s.src[s.leaf])) {
+          const transformed = s.src[s.leaf].join('\n').replace(/[\s\n]+$/g, "");
+          s.src[s.leaf] = transformed;
+        } else {
+          const name = `${m} in ${l.name}`;
+          skips.push(name);
+          console.log('SKIPPING '+name, s.src[s.leaf]);
+        }
       });
-      setInfo(i => ([...i, m.f+' moved-to '+m.t]));
+      setInfo(i => ([...i, m+' transformed']));
     });
  
-    setState('Work on LANG is done');
+    setSt(st => ({ ...st, langSkips: skips }));
+    setState(`Work on LANG is done (${skips.length} skips)`);
   };
 };
 

@@ -17,6 +17,7 @@ export default function Index() {
       <CentHList>
       <NavButton link="./lang_duplicates">Lang Duplicates</NavButton>
       <NavButton link="./lang_dup_migrate">Lang Migration</NavButton>
+      <NavButton link="./lang_tocmd">Show Text Commands</NavButton>
       </CentHList>
       <Outlet />
     </CentVList>
